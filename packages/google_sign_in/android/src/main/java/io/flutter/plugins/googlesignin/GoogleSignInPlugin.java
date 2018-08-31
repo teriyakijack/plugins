@@ -23,6 +23,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.common.Scopes;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.OptionalPendingResult;
@@ -76,7 +77,8 @@ public class GoogleSignInPlugin implements MethodCallHandler {
         String signInOption = call.argument("signInOption");
         List<String> requestedScopes = call.argument("scopes");
         String hostedDomain = call.argument("hostedDomain");
-        delegate.init(result, signInOption, requestedScopes, hostedDomain);
+        String serverClientId = call.argument("serverClientId");
+        delegate.init(result, signInOption, requestedScopes, hostedDomain, serverClientId);
         break;
 
       case METHOD_SIGN_IN_SILENTLY:
@@ -117,7 +119,7 @@ public class GoogleSignInPlugin implements MethodCallHandler {
   public interface IDelegate {
     /** Initializes this delegate so that it is ready to perform other operations. */
     public void init(
-        Result result, String signInOption, List<String> requestedScopes, String hostedDomain);
+        Result result, String signInOption, List<String> requestedScopes, String hostedDomain, String serverClientId);
 
     /**
      * Returns the account information for the user who is signed in to this app. If no user is
@@ -212,7 +214,7 @@ public class GoogleSignInPlugin implements MethodCallHandler {
      */
     @Override
     public void init(
-        Result result, String signInOption, List<String> requestedScopes, String hostedDomain) {
+        Result result, String signInOption, List<String> requestedScopes, String hostedDomain, String serverClientId) {
       // We're not initialized until we receive `onConnected`.
       // If initialization fails, we'll receive `onConnectionFailed`
       checkAndSetPendingOperation(METHOD_INIT, result);
@@ -243,12 +245,16 @@ public class GoogleSignInPlugin implements MethodCallHandler {
                 .getResources()
                 .getIdentifier(
                     "default_web_client_id", "string", registrar.context().getPackageName());
-        if (clientIdIdentifier != 0) {
+        if (clientIdIdentifier != 0 && Strings.isNullOrEmpty(serverClientId)) {
           optionsBuilder.requestIdToken(registrar.context().getString(clientIdIdentifier));
+        } else {
+          optionsBuilder.requestServerAuthCode(serverClientId);
         }
+
         for (String scope : requestedScopes) {
           optionsBuilder.requestScopes(new Scope(scope));
         }
+
         if (!Strings.isNullOrEmpty(hostedDomain)) {
           optionsBuilder.setHostedDomain(hostedDomain);
         }
@@ -401,6 +407,14 @@ public class GoogleSignInPlugin implements MethodCallHandler {
         GoogleSignInAccount account = result.getSignInAccount();
         currentAccount = account;
         Map<String, Object> response = new HashMap<>();
+        String serverAuthCode = null;
+        try {
+            serverAuthCode = account.getServerAuthCode();
+        } catch (NullPointerException e) {
+            Log.e(TAG, "NullPointerException: " + e.getMessage());
+        }
+        response.put("serverAuthCode", serverAuthCode);
+        Log.d(TAG, "onSignInResult: " + serverAuthCode);
         response.put("email", account.getEmail());
         response.put("id", account.getId());
         response.put("idToken", account.getIdToken());

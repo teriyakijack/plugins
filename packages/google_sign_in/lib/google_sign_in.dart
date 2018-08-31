@@ -26,6 +26,8 @@ class GoogleSignInAuthentication {
   /// The OAuth2 access token to access Google services.
   String get accessToken => _data['accessToken'];
 
+  String get serverAuthCode => _data['serverAuthCode'];
+
   @override
   String toString() => 'GoogleSignInAuthentication:$_data';
 }
@@ -138,6 +140,9 @@ class GoogleSignIn {
   /// Domain to restrict sign-in to.
   final String hostedDomain;
 
+  /// The unique server app's id registered on Google console manager.
+  final String serverClientId;
+
   /// Initializes global sign-in configuration settings.
   ///
   /// The [signInOption] determines the user experience. [SigninOption.games]
@@ -152,14 +157,16 @@ class GoogleSignIn {
   /// The [hostedDomain] argument specifies a hosted domain restriction. By
   /// setting this, sign in will be restricted to accounts of the user in the
   /// specified domain. By default, the list of accounts will not be restricted.
-  GoogleSignIn({this.signInOption, this.scopes, this.hostedDomain});
+  GoogleSignIn({this.signInOption, this.scopes, this.hostedDomain, this.serverClientId});
 
   /// Factory for creating default sign in user experience.
-  factory GoogleSignIn.standard({List<String> scopes, String hostedDomain}) {
+  factory GoogleSignIn.standard({List<String> scopes, String hostedDomain, String serverClientId}) {
     return new GoogleSignIn(
         signInOption: SignInOption.standard,
         scopes: scopes,
-        hostedDomain: hostedDomain);
+        hostedDomain: hostedDomain,
+        serverClientId: serverClientId
+    );
   }
 
   /// Factory for creating sign in suitable for games. This option must not be
@@ -201,6 +208,7 @@ class GoogleSignIn {
         'signInOption': (signInOption ?? SignInOption.standard).toString(),
         'scopes': scopes ?? <String>[],
         'hostedDomain': hostedDomain,
+        'serverClientId': serverClientId,
       })
         ..catchError((dynamic _) {
           // Invalidate initialization if it errored out.
